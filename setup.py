@@ -36,7 +36,7 @@ setup(
     ],
     test_suite='nose.collector',
     url='https://github.com/Nextdoor/nose-leak-detector',
-    download_url='https://github.com/Nextdoor/nose-leak-detector/tarball/0.1',
+    download_url='https://github.com/Nextdoor/nose-leak-detector/tarball/0.1.tar.gz',
     include_package_data=True,
     entry_points="""
         [nose.plugins.0.10]
