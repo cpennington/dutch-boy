@@ -38,7 +38,7 @@ setup(
     include_package_data=True,
     entry_points="""
         [nose.plugins.0.10]
-        noseleakdetector = nose_leak_detector:LeakDetector
+        nose_leak_detector = nose_leak_detector.plugin:LeakDetectorPlugin
         """,
     classifiers=[
         'Development Status :: 4 - Beta',
