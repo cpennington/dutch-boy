@@ -177,17 +177,17 @@ class LeakDetectorPlugin(Plugin):
             try:
                 self.check_for_leaks()
             except LeakDetected as e:
-                exc_info = sys.exc_info()
-                e.message += ' at %s' % self.get_level_path()
+                exception_class, value, _ = sys.exc_info()
+                message = str(value) + ' at %s' % self.get_level_path()
                 if self.last_test_name:
-                    e.message += " for prior test '%s'" % self.last_test_name
-                    result.addError(test, (exc_info[0], exc_info[1], None))
+                    message += " for prior test '%s'" % self.last_test_name
+                    result.addError(test, (exception_class, message, None))
                 else:
                     if before:
-                        e.message += ' before test'
+                        message += ' before test'
                     else:
-                        e.message += ' before any tests were run'
-                    result.addError(test, (exc_info[0], exc_info[1], None))
+                        message += ' before any tests were run'
+                    result.addError(test, (exception_class, message, None))
                 self.failed_test_with_leak = True
                 if not self.fail_fast:
                     result.stop()
@@ -203,8 +203,8 @@ class LeakDetectorPlugin(Plugin):
             do_check(before=False)
 
     def get_level_path(self):
-        name = ''
-        for i in reversed(xrange(1, self.reporting_level + 1)):
+        name = u''
+        for i in reversed(range(1, self.reporting_level + 1)):
             name += '/' + (self.level_name.get(i, '???') or '???')
         return name
 
@@ -235,7 +235,7 @@ class LeakDetectorPlugin(Plugin):
 
         if self.report_delta:
             color = self.REPORT_DETAILS[level].color
-            report = 'Memory Delta Report for %s: %s\n' % (
+            report = u'Memory Delta Report for %s: %s\n' % (
                 self.REPORT_DETAILS[level].title.upper(), name)
             memory_usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 
@@ -266,16 +266,16 @@ class LeakDetectorPlugin(Plugin):
             try:
                 self.check_for_leaks()
             except LeakDetected:
-                self._final_exc_info = sys.exc_info()
+                self._final_exc_info = sys.exc_info()[:2]
 
     def report(self, stream):
         self.final_check()
 
-        msg = 'Leak Detector Report: '
+        msg = u'Leak Detector Report: '
         if self._final_exc_info:
             msg += 'FAILED: '
             color = 'red'
-            msg += self._final_exc_info[1].message
+            msg += str(self._final_exc_info[1])
         else:
             color = 'green'
             msg += 'PASSED: All mocks have been reset or garbage collected.'
@@ -290,9 +290,9 @@ class LeakDetectorPlugin(Plugin):
 
         # Guarantee a test failure if we saw an exception during the report phase
         if self._final_exc_info and self.last_test_name:
-            exception, message = self._final_exc_info[:2]
+            exception_class, value = self._final_exc_info
             del self._final_exc_info  # ensure that we remove the reference to the failed mock
-            raise exception, message
+            raise value
 
     def register_mock(self, mock):
         # Save the traceback on the patch so we can see where it was created

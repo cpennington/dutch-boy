@@ -1,13 +1,23 @@
 from builtins import *
 
-import StringIO
+from io import StringIO
 import contextlib
-import mock
+try:
+    from unittest import mock
+except ImportError:
+    from mock import mock
 import re
 import unittest
 
 from nose_leak_detector import plugin
 
+
+class TestCase(unittest.TestCase):
+    pass
+
+if not hasattr(TestCase, 'assertRegex'):
+    TestCase.assertRegex = TestCase.assertRegexpMatches
+    TestCase.assertRaisesRegex = TestCase.assertRaisesRegexp
 
 @contextlib.contextmanager
 def _leaked_mock(case):
@@ -23,7 +33,7 @@ def create_ignored_mock(name='', **kwargs):
     return mock.MagicMock(name=name, **kwargs)
 
 
-class LeakDetectorFinalizeTestCase(unittest.TestCase):
+class LeakDetectorFinalizeTestCase(TestCase):
     def setUp(self):
         self.detector = plugin.LeakDetectorPlugin()
         options = create_ignored_mock(
@@ -56,27 +66,26 @@ class LeakDetectorFinalizeTestCase(unittest.TestCase):
     def test_leak_detected(self):
         """ Leaks are reported as errors when the test suite finishes. """
 
-        with _leaked_mock(self):
-            stream = StringIO.StringIO()
+        with _leaked_mock(self), StringIO() as stream:
             self.detector.report(stream)
-            self.assertRegexpMatches(stream.getvalue(),
-                                     re.compile('FAILED.*Found 1 new mock.*MY LEAKED MOCK',
-                                                re.MULTILINE | re.DOTALL))
+            self.assertRegex(stream.getvalue(),
+                             re.compile('FAILED.*Found 1 new mock.*MY LEAKED MOCK',
+                                        re.MULTILINE | re.DOTALL))
 
-        with self.assertRaisesRegexp(plugin.LeakDetected, 'Found 1 new mock'):
+        with self.assertRaisesRegex(plugin.LeakDetected, 'Found 1 new mock'):
             self.detector.finalize(self.suite_result)
 
     def test_no_leak_detected(self):
         """ No leak is detected in normal test case. """
-        stream = StringIO.StringIO()
-        self.detector.report(stream)
-        self.assertRegexpMatches(stream.getvalue(), '.*PASSED.*')
+        with StringIO() as stream:
+            self.detector.report(stream)
+            self.assertRegex(stream.getvalue(), '.*PASSED.*')
 
         self.detector.finalize(self.suite_result)
         self.assertFalse(self.suite_result.addError.called)
 
 
-class LeakDetectorLevelTestCase(unittest.TestCase):
+class LeakDetectorLevelTestCase(TestCase):
     def setUp(self):
         self.detector = plugin.LeakDetectorPlugin()
         options = create_ignored_mock(
@@ -118,9 +127,9 @@ class LeakDetectorLevelTestCase(unittest.TestCase):
         # The error should be set on the second test (because we don't want to keep a test around)
         self.assertTrue(next_result.addError.called)
         self.assertEquals(next_result.addError.call_args[0][0], next_test)
-        self.assertRegexpMatches(str(next_result.addError.call_args[0][1]),
-                                 re.compile('Found 1 new mock.*MY LEAKED MOCK',
-                                            re.MULTILINE | re.DOTALL))
+        self.assertRegex(str(next_result.addError.call_args[0][1]),
+                         re.compile('Found 1 new mock.*MY LEAKED MOCK',
+                                    re.MULTILINE | re.DOTALL))
 
     def test_no_leak_detected(self):
         """ No errors should be generated when there are no mocks present prior to a test. """
@@ -145,6 +154,5 @@ class LeakDetectorLevelTestCase(unittest.TestCase):
         self.assertTrue(self.fake_result.addError.called)
         self.assertEquals(self.fake_result.addError.call_count, 1)
         self.assertEquals(self.fake_result.addError.call_args[0][0], self.fake_test)
-        self.assertRegexpMatches(str(self.fake_result.addError.call_args[0][1]),
-                                 re.compile('Found 1 new mock.*MY LEAKED MOCK',
-                                            re.MULTILINE | re.DOTALL))
+        self.assertRegex(str(self.fake_result.addError.call_args[0][1]),
+                         re.compile('Found 1 new mock.*MY LEAKED MOCK', re.MULTILINE | re.DOTALL))
