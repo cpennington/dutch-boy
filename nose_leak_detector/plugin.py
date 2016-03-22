@@ -102,6 +102,11 @@ class LeakDetectorPlugin(Plugin):
                           dest="leak_detector_patch_mock",
                           help="")
 
+        parser.add_option("--leak-detector-add-traceback", action="store_true",
+                          default=env.get('NOSE_LEAK_DETECTOR_ADD_TRACEBACK', False),
+                          dest="leak_detector_add_traceback",
+                          help="")
+
         parser.add_option("--leak-detector-ignore-pattern", action="append",
                           default=(filter(operator.truth,
                                           env.get('NOSE_LEAK_DETECTOR_IGNORE_PATTERNS', ''
@@ -120,6 +125,7 @@ class LeakDetectorPlugin(Plugin):
         self.report_delta = options.leak_detector_report_delta
         self.patch_mock = options.leak_detector_patch_mock
         self.ignore_patterns = options.leak_detector_ignore_patterns
+        self.add_traceback_to_mocks = options.leak_detector_add_traceback
 
     def begin(self):
         self.create_initial_summary()
@@ -327,7 +333,10 @@ class LeakDetectorPlugin(Plugin):
         if new_mocks:
             def error_message(mock):
                 data = vars(mock)
-                msg = ' --> '.join(data.pop('_mock_traceback', ['No traceback']))
+                msg = ' --> '.join(data.pop(
+                    '_mock_traceback',
+                    ["No traceback available.  Consider setting '--leak-detector-add-traceback' to "
+                     "see where this mock was created."]))
                 return msg + ' : ' + str(data)
             errs = list(map(error_message, new_mocks))
             msg = ('Found %d new mock(s) that have not been garbage collected:\n%s' %
