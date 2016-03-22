@@ -15,6 +15,7 @@ from nose_leak_detector import plugin
 class TestCase(unittest.TestCase):
     pass
 
+# For python 2.7
 if not hasattr(TestCase, 'assertRegex'):
     TestCase.assertRegex = TestCase.assertRegexpMatches
     TestCase.assertRaisesRegex = TestCase.assertRaisesRegexp
