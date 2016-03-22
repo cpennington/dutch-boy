@@ -6,6 +6,7 @@ from builtins import *
 import collections
 import functools
 import gc
+import operator
 import re
 
 try:
@@ -101,8 +102,10 @@ class LeakDetectorPlugin(Plugin):
                           dest="leak_detector_patch_mock",
                           help="")
 
-        parser.add_option("--leak-detector-ignore-pattern", action="store_append",
-                          default=(env.get('NOSE_LEAK_DETECTOR_IGNORE_PATTERNS', '').split(',') or
+        parser.add_option("--leak-detector-ignore-pattern", action="append",
+                          default=(filter(operator.truth,
+                                          env.get('NOSE_LEAK_DETECTOR_IGNORE_PATTERNS', ''
+                                                  ).split(',')) or
                                    ['NOSE_LEAK_DETECTOR_IGNORE']),
                           dest="leak_detector_ignore_patterns",
                           help="")
