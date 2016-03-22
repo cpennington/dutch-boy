@@ -8,6 +8,7 @@ import unittest
 
 from nose_leak_detector import plugin
 
+
 @contextlib.contextmanager
 def _leaked_mock(case):
     """ Create a leaked mock for the duration of a context """
@@ -16,39 +17,41 @@ def _leaked_mock(case):
     del leaked_mock
 
 
+def create_ignored_mock(name='', **kwargs):
+    """ Create a mock that won't be considered leaked by the leak detector """
+    name += ' NOSE_LEAK_DETECTOR_IGNORE'
+    return mock.MagicMock(name=name, **kwargs)
+
+
 class LeakDetectorFinalizeTestCase(unittest.TestCase):
     def setUp(self):
         self.detector = plugin.LeakDetectorPlugin()
-        options = mock.Mock(
-            name='%s: Options NOSE_LEAK_DETECTOR_IGNORE' % self.id(),
+        options = create_ignored_mock(
+            name='%s: Options' % self.id(),
             leak_detector_level=plugin.LEVEL_TEST,
             leak_detector_report_delta=False,
-            leak_detector_patch_mock=True)
+            leak_detector_patch_mock=True,
+            leak_detector_ignore_patterns=['NOSE_LEAK_DETECTOR_IGNORE'])
 
-        configuration = mock.Mock(name='%s: Configuration NOSE_LEAK_DETECTOR_IGNORE' % self.id())
+        configuration = create_ignored_mock(name='%s: Configuration' % self.id())
         self.detector.configure(options, configuration)
         self.detector.begin()
 
         # detector requires a test to attach a failure to
-        self.fake_test = mock.MagicMock(name='%s: Test NOSE_LEAK_DETECTOR_IGNORE' % self.id())
-        self.fake_result = mock.create_autospec(unittest.TestResult,
-                                                _name='%s: Result NOSE_LEAK_DETECTOR_IGNORE'
-                                                      % self.id())
+        self.fake_test = create_ignored_mock(name='%s: Test' % self.id(),
+                                             __class__=create_ignored_mock(__name__='testClass'),
+                                             __unicode__=create_ignored_mock(return_value='my_test'))
+        self.fake_result = create_ignored_mock(spec=unittest.TestResult,
+                                               name='%s: Result' % self.id())
 
         # Simulate running a nose test
         self.detector.beforeTest(self.fake_test)
         self.detector.prepareTestCase(self.fake_test)(self.fake_result)
         self.detector.afterTest(self.fake_test)
 
-        self.suite_result = mock.create_autospec(unittest.result.TestResult,
-                                                 _name='Suite Result NOSE_LEAK_DETECTOR_IGNORE')
+        self.suite_result = create_ignored_mock(spec=unittest.result.TestResult,
+                                                name='Suite Result')
         self.suite_result.errors = []
-
-    def tearDown(self):
-        del self.suite_result
-        del self.fake_test
-        del self.fake_result
-        del self.detector
 
     def test_leak_detected(self):
         """ Leaks are reported as errors when the test suite finishes. """
@@ -60,9 +63,8 @@ class LeakDetectorFinalizeTestCase(unittest.TestCase):
                                      re.compile('FAILED.*Found 1 new mock.*MY LEAKED MOCK',
                                                 re.MULTILINE | re.DOTALL))
 
-        self.detector.finalize(self.suite_result)
-        self.assertTrue(self.suite_result.addError.called)
-        self.assertEquals(self.suite_result.addError.call_args[0][0], self.fake_test.test)
+        with self.assertRaisesRegexp(plugin.LeakDetected, 'Found 1 new mock'):
+            self.detector.finalize(self.suite_result)
 
     def test_no_leak_detected(self):
         """ No leak is detected in normal test case. """
@@ -77,25 +79,21 @@ class LeakDetectorFinalizeTestCase(unittest.TestCase):
 class LeakDetectorLevelTestCase(unittest.TestCase):
     def setUp(self):
         self.detector = plugin.LeakDetectorPlugin()
-        options = mock.Mock(
-            name='%s: Options NOSE_LEAK_DETECTOR_IGNORE' % self.id(),
+        options = create_ignored_mock(
+            name='%s: Options' % self.id(),
             leak_detector_level=plugin.LEVEL_TEST,
             leak_detector_report_delta=False,
-            leak_detector_patch_mock=True)
+            leak_detector_patch_mock=True,
+            leak_detector_ignore_patterns=['NOSE_LEAK_DETECTOR_IGNORE'])
 
-        configuration = mock.Mock(name='%s: Configuration NOSE_LEAK_DETECTOR_IGNORE' % self.id())
+        configuration = create_ignored_mock(name='%s: Configuration' % self.id())
         self.detector.configure(options, configuration)
         self.detector.begin()
-        self.fake_test = mock.MagicMock(name='%s: Test NOSE_LEAK_DETECTOR_IGNORE'
-                                             % self.id())
-        self.fake_result = mock.create_autospec(unittest.result.TestResult,
-                                                _name='%s: Result NOSE_LEAK_DETECTOR_IGNORE'
-                                                      % self.id())
-
-    def tearDown(self):
-        del self.detector
-        del self.fake_test
-        del self.fake_result
+        self.fake_test = create_ignored_mock(name='%s' % self.id(),
+                                             __class__=create_ignored_mock(__name__='testClass'),
+                                             __unicode__=create_ignored_mock(return_value='my_test'))
+        self.fake_result = create_ignored_mock(spec=unittest.result.TestResult,
+                                               name='%s: Result' % self.id())
 
     def test_leak_detected(self):
         """ A mock leaked by one test is detected on the next test but reported on the first. """
@@ -107,10 +105,9 @@ class LeakDetectorLevelTestCase(unittest.TestCase):
         with _leaked_mock(self):
             self.detector.afterTest(self.fake_test)
 
-            next_test = mock.Mock(name='%s: Next Test NOSE_LEAK_DETECTOR_IGNORE' % self.id())
-            next_result = mock.create_autospec(unittest.result.TestResult,
-                                               _name='%s: Next Result NOSE_LEAK_DETECTOR_IGNORE'
-                                                     % self.id())
+            next_test = create_ignored_mock(name='%s: Next Test' % self.id())
+            next_result = create_ignored_mock(spec=unittest.result.TestResult,
+                                              name='%s: Next Result' % self.id())
 
             # Simulate nose running another test
             self.detector.beforeTest(next_test)
@@ -118,10 +115,10 @@ class LeakDetectorLevelTestCase(unittest.TestCase):
 
         self.detector.afterTest(next_test)
 
-        # The error should be set on the first test
-        self.assertTrue(self.fake_result.addError.called)
-        self.assertEquals(self.fake_result.addError.call_args[0][0], self.fake_test)
-        self.assertRegexpMatches(str(self.fake_result.addError.call_args[0][1]),
+        # The error should be set on the second test (because we don't want to keep a test around)
+        self.assertTrue(next_result.addError.called)
+        self.assertEquals(next_result.addError.call_args[0][0], next_test)
+        self.assertRegexpMatches(str(next_result.addError.call_args[0][1]),
                                  re.compile('Found 1 new mock.*MY LEAKED MOCK',
                                             re.MULTILINE | re.DOTALL))
 
@@ -132,7 +129,6 @@ class LeakDetectorLevelTestCase(unittest.TestCase):
         self.detector.beforeTest(self.fake_test)
         self.detector.prepareTestCase(self.fake_test)(self.fake_result)
         self.detector.afterTest(self.fake_test)
-
         self.assertFalse(self.fake_result.addError.called)
 
     def test_leak_detected_before_first_test(self):

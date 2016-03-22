@@ -6,11 +6,12 @@ from builtins import *
 import collections
 import functools
 import gc
+import re
 
 try:
     from unittest import mock
 except ImportError:
-    import mock
+    from mock import mock
 
 import resource
 import sys
@@ -23,8 +24,6 @@ from pympler import summary
 import termcolor
 
 ReportDetail = collections.namedtuple('ReportDetail', ['title', 'color'])
-
-IGNORED_MOCK_NAME_WORDS = ['NOSE_LEAK_DETECTOR_IGNORE']
 
 LEVEL_DIR = 1
 LEVEL_MODULE = 2
@@ -64,11 +63,13 @@ class LeakDetectorPlugin(Plugin):
         self.check_for_leaks_before_next_test = True
         self.report_delta = False
         self.add_traceback_to_mocks = False
+        self.ignore_patterns = []
 
         self.patch_mock = False
         self.failed_test_with_leak = False
-        self.last_test = None
-        self.last_test_result = None
+        self.last_test_name = None
+        self.last_test_type = None
+        self.last_test_class_name = None
         self.level_name = {}
         self.previous_summaries = {}
         self.current_summary = None
@@ -100,6 +101,12 @@ class LeakDetectorPlugin(Plugin):
                           dest="leak_detector_patch_mock",
                           help="")
 
+        parser.add_option("--leak-detector-ignore-pattern", action="store_append",
+                          default=(env.get('NOSE_LEAK_DETECTOR_IGNORE_PATTERNS', '').split(',') or
+                                   ['NOSE_LEAK_DETECTOR_IGNORE']),
+                          dest="leak_detector_ignore_patterns",
+                          help="")
+
     def configure(self, options, conf):
         """
         Configure plugin.
@@ -109,6 +116,7 @@ class LeakDetectorPlugin(Plugin):
             self.reporting_level = int(options.leak_detector_level)
         self.report_delta = options.leak_detector_report_delta
         self.patch_mock = options.leak_detector_patch_mock
+        self.ignore_patterns = options.leak_detector_ignore_patterns
 
     def begin(self):
         self.create_initial_summary()
@@ -148,16 +156,17 @@ class LeakDetectorPlugin(Plugin):
                 self.previous_summaries[i] = initial_summary
 
     def beforeTest(self, test):
-        if self.last_test and type(self.last_test.test) is not type(test.test):
-            self.finished_level(LEVEL_CLASS, self.last_test.test.__class__.__name__)
+        if self.last_test_name and self.last_test_type is not type(test.test):
+            self.finished_level(LEVEL_CLASS, self.last_test_class_name)
 
-        if not self.last_test or type(self.last_test.test) is type(test.test):
-            self.started_level(LEVEL_CLASS, test.test.__class__.__name__)
+        if not self.last_test_name or self.last_test_type is type(test.test):
+            self.started_level(LEVEL_CLASS, self.last_test_class_name)
 
         self.started_level(LEVEL_TEST, str(test))
 
     def afterTest(self, test):
-        self.last_test = test
+        self.last_test_name = str(test.test)
+        self.last_test_class_name = test.test.__class__.__name__
 
         self.finished_level(LEVEL_TEST, str(test))
 
@@ -170,17 +179,15 @@ class LeakDetectorPlugin(Plugin):
             except LeakDetected as e:
                 exc_info = sys.exc_info()
                 e.message += ' at %s' % self.get_level_path()
-                # Attach the error to the last test
-                if self.last_test_result:
-                    self.last_test_result.addError(self.last_test, exc_info)
-                    e.message += " for prior test '%s'" % self.last_test
-                    result.addError(test, exc_info)
+                if self.last_test_name:
+                    e.message += " for prior test '%s'" % self.last_test_name
+                    result.addError(test, (exc_info[0], exc_info[1], None))
                 else:
                     if before:
                         e.message += ' before test'
                     else:
                         e.message += ' before any tests were run'
-                    result.addError(test, sys.exc_info())
+                    result.addError(test, (exc_info[0], exc_info[1], None))
                 self.failed_test_with_leak = True
                 if not self.fail_fast:
                     result.stop()
@@ -195,12 +202,10 @@ class LeakDetectorPlugin(Plugin):
         if self.reporting_level >= LEVEL_TEST:
             do_check(before=False)
 
-        self.last_test_result = result
-
     def get_level_path(self):
         name = ''
         for i in reversed(xrange(1, self.reporting_level + 1)):
-            name += '/' + self.level_name.get(i, '???')
+            name += '/' + (self.level_name.get(i, '???') or '???')
         return name
 
     # TODO(asbrown): nose plugins report changes in mdule and directory at load time so we'll
@@ -284,8 +289,10 @@ class LeakDetectorPlugin(Plugin):
             mock.Base.__init__ = mock.Base.__init__.__wrapped__
 
         # Guarantee a test failure if we saw an exception during the report phase
-        if self._final_exc_info and self.last_test:
-            result.addError(self.last_test.test, self._final_exc_info)
+        if self._final_exc_info and self.last_test_name:
+            exception, message = self._final_exc_info[:2]
+            del self._final_exc_info  # ensure that we remove the reference to the failed mock
+            raise exception, message
 
     def register_mock(self, mock):
         # Save the traceback on the patch so we can see where it was created
@@ -305,7 +312,8 @@ class LeakDetectorPlugin(Plugin):
         # Exclude some mocks from consideration
         # Use list so that we don't keep around a generate that isn't gc'd
         filtered_mocks = list(
-            filter(lambda m: not any(word in repr(m) for word in IGNORED_MOCK_NAME_WORDS), mocks))
+            filter(lambda m: not any(re.search(pattern, repr(m))
+                                     for pattern in self.ignore_patterns), mocks))
 
         # Use list so that we don't keep around a generate that isn't gc'd
         new_mocks = list(m for m in filtered_mocks
