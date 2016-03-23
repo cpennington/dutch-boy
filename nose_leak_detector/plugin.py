@@ -14,7 +14,10 @@ try:
     from unittest.mock import Base
 except ImportError:
     import mock
-    from mock.mock import Base
+    try:
+        from mock.mock import Base
+    except ImportError:
+        from mock import Base
 
 import resource
 import sys
