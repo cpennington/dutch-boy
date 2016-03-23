@@ -213,8 +213,9 @@ class LeakDetectorPlugin(Plugin):
 
     def get_level_path(self):
         name = u''
-        for i in reversed(range(1, self.reporting_level + 1)):
-            name += '/' + (self.level_name.get(i, '???') or '???')
+        for i in range(1, self.reporting_level + 1):
+            default_name = '<unknown %s>' % self.REPORT_DETAILS[i].title.lower()
+            name += '/' + (self.level_name.get(i, default_name) or default_name)
         return name
 
     # TODO(asbrown): nose plugins report changes in mdule and directory at load time so we'll
