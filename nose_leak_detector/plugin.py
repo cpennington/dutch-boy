@@ -108,9 +108,9 @@ class LeakDetectorPlugin(Plugin):
                           help="")
 
         parser.add_option("--leak-detector-ignore-pattern", action="append",
-                          default=(filter(operator.truth,
-                                          env.get('NOSE_LEAK_DETECTOR_IGNORE_PATTERNS', ''
-                                                  ).split(',')) or
+                          default=(list(filter(operator.truth,
+                                               env.get('NOSE_LEAK_DETECTOR_IGNORE_PATTERNS',
+                                                       '').split(','))) or
                                    ['NOSE_LEAK_DETECTOR_IGNORE']),
                           dest="leak_detector_ignore_patterns",
                           help="")
