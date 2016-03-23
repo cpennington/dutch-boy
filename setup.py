@@ -17,7 +17,7 @@ if sys.version_info >= (3,):
 
 setup(
     name='nose-leak-detector',
-    version='0.1.1',
+    version='0.1.2',
     description='A Nose plugin that detects leaks between tests, mainly with mocks',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     keywords=['testing', 'memory', 'nose', 'mocks'],
