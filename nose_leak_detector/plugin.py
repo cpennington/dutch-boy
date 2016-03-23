@@ -11,8 +11,10 @@ import re
 
 try:
     from unittest import mock
+    from unittest.mock import Base
 except ImportError:
-    from mock import mock
+    import mock
+    from mock.mock import Base
 
 import resource
 import sys
@@ -147,7 +149,7 @@ class LeakDetectorPlugin(Plugin):
                         detector.register_mock(mock)
                     return wrapper
 
-                mock.Base.__init__ = decorator(mock.Base.__init__)
+                Base.__init__ = decorator(Base.__init__)
 
     def prepareTestCase(self, test):
         return LeakDetectorTestCase(test, detector=self)
@@ -295,8 +297,8 @@ class LeakDetectorPlugin(Plugin):
     def finalize(self, result):
         self.final_check()
 
-        if self.patch_mock and hasattr(mock.Base.__init__, '__wrapped__'):
-            mock.Base.__init__ = mock.Base.__init__.__wrapped__
+        if self.patch_mock and hasattr(Base.__init__, '__wrapped__'):
+            Base.__init__ = Base.__init__.__wrapped__
 
         # Guarantee a test failure if we saw an exception during the report phase
         if self._final_exc_info and self.last_test_name:

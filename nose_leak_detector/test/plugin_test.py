@@ -5,7 +5,7 @@ import contextlib
 try:
     from unittest import mock
 except ImportError:
-    from mock import mock
+    import mock
 import re
 import unittest
 
@@ -127,7 +127,7 @@ class LeakDetectorLevelTestCase(TestCase):
 
         # The error should be set on the second test (because we don't want to keep a test around)
         self.assertTrue(next_result.addError.called)
-        self.assertEquals(next_result.addError.call_args[0][0], next_test)
+        self.assertEqual(next_result.addError.call_args[0][0], next_test)
         self.assertRegex(str(next_result.addError.call_args[0][1]),
                          re.compile('Found 1 new mock.*MY LEAKED MOCK',
                                     re.MULTILINE | re.DOTALL))
@@ -153,7 +153,7 @@ class LeakDetectorLevelTestCase(TestCase):
         self.detector.afterTest(self.fake_test)
 
         self.assertTrue(self.fake_result.addError.called)
-        self.assertEquals(self.fake_result.addError.call_count, 1)
-        self.assertEquals(self.fake_result.addError.call_args[0][0], self.fake_test)
+        self.assertEqual(self.fake_result.addError.call_count, 1)
+        self.assertEqual(self.fake_result.addError.call_args[0][0], self.fake_test)
         self.assertRegex(str(self.fake_result.addError.call_args[0][1]),
                          re.compile('Found 1 new mock.*MY LEAKED MOCK', re.MULTILINE | re.DOTALL))
