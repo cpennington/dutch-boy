@@ -208,6 +208,7 @@ class LeakDetectorPlugin(Plugin):
 
         if self.check_for_leaks_before_next_test:
             do_check(before=True)
+            self.check_for_leaks_before_next_test = False
 
         self.level_name[LEVEL_MODULE] = test.test.__class__.__module__
 
