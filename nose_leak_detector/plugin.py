@@ -29,6 +29,7 @@ from pympler import muppy
 from pympler import summary
 import termcolor
 
+KnownMock = collections.namedtuple('KnownMock', ['mock_ref', 'test', 'traceback'])
 ReportDetail = collections.namedtuple('ReportDetail', ['title', 'color'])
 
 LEVEL_DIR = 1
@@ -68,7 +69,7 @@ class LeakDetectorPlugin(Plugin):
         self.reporting_level = 0
         self.check_for_leaks_before_next_test = True
         self.report_delta = False
-        self.add_traceback_to_mocks = False
+        self.save_traceback = False
         self.ignore_patterns = []
 
         self.patch_mock = False
@@ -83,7 +84,7 @@ class LeakDetectorPlugin(Plugin):
 
         self.mock_patch = None
         self._final_exc_info = None
-        self.mock_refs = []
+        self.known_mocks = []
         self.previous_mock_refs = []
 
     def options(self, parser, env):
@@ -108,8 +109,8 @@ class LeakDetectorPlugin(Plugin):
                           help="")
 
         parser.add_option("--leak-detector-add-traceback", action="store_true",
-                          default=env.get('NOSE_LEAK_DETECTOR_ADD_TRACEBACK', False),
-                          dest="leak_detector_add_traceback",
+                          default=env.get('NOSE_LEAK_DETECTOR_SAVE_TRACEBACK', False),
+                          dest="leak_detector_save_traceback",
                           help="")
 
         parser.add_option("--leak-detector-ignore-pattern", action="append",
@@ -130,7 +131,7 @@ class LeakDetectorPlugin(Plugin):
         self.report_delta = options.leak_detector_report_delta
         self.patch_mock = options.leak_detector_patch_mock
         self.ignore_patterns = options.leak_detector_ignore_patterns
-        self.add_traceback_to_mocks = options.leak_detector_add_traceback
+        self.save_traceback = options.leak_detector_save_traceback
 
     def begin(self):
         self.create_initial_summary()
@@ -139,17 +140,18 @@ class LeakDetectorPlugin(Plugin):
 
             # Record pre-existing mocks
             gc.collect()
-            self.mock_refs = list(weakref.ref(m) for m in muppy.get_objects()
-                                  if isinstance(m, mock.Mock))
+            self.known_mocks = list(KnownMock(weakref.ref(m), None, None)
+                                    for m in gc.get_objects() if isinstance(m, mock.Mock))
+            self.previous_mock_refs = list(m.mock_ref for m in self.known_mocks)
 
             if self.patch_mock:
                 detector = self
 
                 def decorator(f):
                     @functools.wraps(f)
-                    def wrapper(mock, *args, **kwargs):
-                        f(mock, *args, **kwargs)
-                        detector.register_mock(mock)
+                    def wrapper(new_mock, *args, **kwargs):
+                        f(new_mock, *args, **kwargs)
+                        detector.register_mock(new_mock, detector.level_name.get(LEVEL_TEST))
                     return wrapper
 
                 Base.__init__ = decorator(Base.__init__)
@@ -310,47 +312,70 @@ class LeakDetectorPlugin(Plugin):
             del self._final_exc_info  # ensure that we remove the reference to the failed mock
             raise value
 
-    def register_mock(self, mock):
+    def register_mock(self, new_mock, test_name):
         # Save the traceback on the patch so we can see where it was created
-        if not mock.__dict__.get('_mock_traceback', None):
+        if self.save_traceback:
             frames = [f for f in traceback.format_stack(limit=10)[:-1] if 'mock.py' not in f]
             # Reversing these makes them easier to see
-            mock.__dict__['_mock_traceback'] = list(reversed(frames))
+            tb = list(reversed(frames))
+        else:
+            tb = None
 
         # Save the mock to our list of mocks
-        self.mock_refs.append(weakref.ref(mock))
+        self.known_mocks.append(KnownMock(weakref.ref(new_mock), test_name, tb))
 
     def check_for_leaks(self):
-        gc.collect()
+        live_mocks = list(filter(lambda m: m.mock_ref() is not None,
+                                 self.known_mocks))
 
-        mocks = list(filter(lambda m: m is not None, [r() for r in self.mock_refs]))
+        previous_mock_ids = set(id(r()) for r in self.previous_mock_refs)
 
-        # Exclude some mocks from consideration
-        # Use list so that we don't keep around a generate that isn't gc'd
-        filtered_mocks = list(
-            filter(lambda m: not any(re.search(pattern, repr(m))
-                                     for pattern in self.ignore_patterns), mocks))
+        def get_new_mocks():
+            # Use list so that we don't keep around a generate that isn't gc'd
+            return list(m for m in live_mocks if m.mock_ref() and
+                        id(m.mock_ref()) not in previous_mock_ids and
+                        not any(re.search(pattern, repr(m.mock_ref()))
+                                for pattern in self.ignore_patterns))
 
-        # Use list so that we don't keep around a generate that isn't gc'd
-        new_mocks = list(m for m in filtered_mocks
-                         if id(m) not in set(id(r()) for r in self.previous_mock_refs))
+        def get_called_mocks():
+            return list(filter(lambda m: m.mock_ref() is not None and m.mock_ref().called and
+                               not any(re.search(pattern, repr(m.mock_ref()))
+                                       for pattern in self.ignore_patterns),
+                               self.known_mocks))
 
-        self.previous_mock_refs = list(map(weakref.ref, mocks))
+        self.previous_mock_refs = list([weakref.ref(m.mock_ref()) for m in live_mocks])
 
-        if new_mocks:
-            def error_message(mock):
-                data = vars(mock)
-                msg = ' --> '.join(data.pop(
-                    '_mock_traceback',
+        if get_new_mocks() or get_called_mocks():
+            # Try again after garbage collecting
+            gc.collect()
+            new_mocks = get_new_mocks()
+            called_mocks = get_called_mocks()
+            if not (new_mocks or called_mocks):
+                return
+
+            def error_message(bad_mock):
+                data = vars(bad_mock.mock_ref())
+                msg = ' --> '.join(bad_mock.traceback or
                     ["No traceback available.  Consider setting '--leak-detector-add-traceback' to "
-                     "see where this mock was created."]))
+                     "see where this mock was created."])
+                if bad_mock.test:
+                    msg += ' for test %s' % bad_mock.test
                 return msg + ' : ' + str(data)
-            errs = list(map(error_message, new_mocks))
-            msg = ('Found %d new mock(s) that have not been garbage collected:\n%s' %
-                   (len(new_mocks), errs))
+
+            msg = ''
+            if new_mocks:
+                msg += ('Found %d new mock(s) that have not been garbage collected:\n%s' %
+                        (len(new_mocks), list(map(error_message, new_mocks))))
+
+            if called_mocks:
+                msg += ('Found %d dirty mock(s) that have not been garbage collected or reset:\n%s' %
+                        (len(called_mocks),
+                         list(map(error_message,
+                                  [m for m in called_mocks if id(m.mock_ref())
+                                   not in [id(n.mock_ref()) for n in new_mocks]]))))
 
             # Ensure hard references to the mocks are no longer on the stack
-            del mocks[:], new_mocks[:]
+            del live_mocks[:], new_mocks[:], called_mocks[:]
             raise LeakDetected(msg)
 
     def get_summary(self):
