@@ -17,7 +17,7 @@ if sys.version_info >= (3,):
 
 setup(
     name='nose-leak-detector',
-    version='0.1.4',
+    version='0.1.5',
     description='A Nose plugin that detects leaks between tests, mainly with mocks',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     keywords=['testing', 'memory', 'nose', 'mocks'],
@@ -36,8 +36,8 @@ setup(
     ],
     test_suite='nose.collector',
     url='https://github.com/Nextdoor/nose-leak-detector',
-    download_url='https://github.com/Nextdoor/nose-leak-detector/archive/0.1.4'
-                 '#egg=nose-leak-detector-0.1.4',
+    download_url='https://github.com/Nextdoor/nose-leak-detector/archive/0.1.5'
+                 '#egg=nose-leak-detector-0.1.5',
     include_package_data=True,
     entry_points="""
         [nose.plugins.0.10]
