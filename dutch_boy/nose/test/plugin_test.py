@@ -9,7 +9,7 @@ except ImportError:
 import re
 import unittest
 
-from nose_leak_detector import plugin
+import dutch_boy.nose
 
 
 class TestCase(unittest.TestCase):
@@ -36,10 +36,10 @@ def create_ignored_mock(name='', **kwargs):
 
 class LeakDetectorFinalizeTestCase(TestCase):
     def setUp(self):
-        self.detector = plugin.LeakDetectorPlugin()
+        self.detector = dutch_boy.nose.LeakDetectorPlugin()
         options = create_ignored_mock(
             name='%s: Options' % self.id(),
-            leak_detector_level=plugin.LEVEL_TEST,
+            leak_detector_level=dutch_boy.nose.plugin.LEVEL_TEST,
             leak_detector_report_delta=False,
             leak_detector_patch_mock=True,
             leak_detector_save_traceback=False,
@@ -80,7 +80,8 @@ class LeakDetectorFinalizeTestCase(TestCase):
                              re.compile('FAILED.*Found 1 new mock.*MY LEAKED MOCK',
                                         re.MULTILINE | re.DOTALL))
 
-        with self.assertRaisesRegex(plugin.LeakDetected, 'Found 1 new mock'):
+        with self.assertRaisesRegex(dutch_boy.nose.plugin.LeakDetected,
+                                    'Found 1 new mock'):
             self.detector.finalize(self.suite_result)
 
     def test_pre_existing_mock_called_and_not_reset(self):
@@ -94,7 +95,8 @@ class LeakDetectorFinalizeTestCase(TestCase):
                              re.compile('FAILED.*Found 1 dirty mock.*MY PRE EXISTING MOCK',
                                         re.MULTILINE | re.DOTALL))
 
-        with self.assertRaisesRegex(plugin.LeakDetected, 'Found 1 dirty mock'):
+        with self.assertRaisesRegex(dutch_boy.nose.plugin.LeakDetected,
+                                    'Found 1 dirty mock'):
             self.detector.finalize(self.suite_result)
 
     def test_no_leak_detected(self):
@@ -109,11 +111,10 @@ class LeakDetectorFinalizeTestCase(TestCase):
 
 class LeakDetectorLevelTestCase(TestCase):
     def setUp(self):
-        import pdb; pdb.set_trace()
-        self.detector = plugin.LeakDetectorPlugin()
+        self.detector = dutch_boy.nose.LeakDetectorPlugin()
         options = create_ignored_mock(
             name='%s: Options' % self.id(),
-            leak_detector_level=plugin.LEVEL_TEST,
+            leak_detector_level=dutch_boy.nose.plugin.LEVEL_TEST,
             leak_detector_report_delta=False,
             leak_detector_patch_mock=True,
             leak_detector_save_traceback=False,

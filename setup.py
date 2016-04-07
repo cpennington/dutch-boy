@@ -16,7 +16,7 @@ if sys.version_info >= (3,):
     extra_setup['use_2to3'] = True
 
 setup(
-    name='nose-leak-detector',
+    name='dutch-boy',
     version='0.1.5',
     description='A Nose plugin that detects leaks between tests, mainly with mocks',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
@@ -35,13 +35,13 @@ setup(
         'mock>=1.3.0',
     ],
     test_suite='nose.collector',
-    url='https://github.com/Nextdoor/nose-leak-detector',
-    download_url='https://github.com/Nextdoor/nose-leak-detector/archive/0.1.5'
-                 '#egg=nose-leak-detector-0.1.5',
+    url='https://github.com/Nextdoor/dutch-boy',
+    download_url='https://github.com/Nextdoor/dutch-boy/archive/0.1.6'
+                 '#egg=dutch-boy-0.1.6',
     include_package_data=True,
     entry_points="""
         [nose.plugins.0.10]
-        nose_leak_detector = nose_leak_detector.plugin:LeakDetectorPlugin
+        dutch_boy = dutch_boy.nose:LeakDetectorPlugin
         """,
     classifiers=[
         'Development Status :: 4 - Beta',

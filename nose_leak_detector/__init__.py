@@ -1,1 +1,0 @@
-from nose_leak_detector.plugin import LeakDetectorPlugin
