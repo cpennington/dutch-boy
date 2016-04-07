@@ -17,8 +17,9 @@ if sys.version_info >= (3,):
 
 setup(
     name='dutch-boy',
-    version='0.1.5',
-    description='A Nose plugin that detects leaks between tests, mainly with mocks',
+    version='0.1.6',
+    description='A library for detecting memory leaks in tests, mainly '
+                'with mocks',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
     keywords=['testing', 'memory', 'nose', 'mocks'],
     author='Andrew S. Brown',
