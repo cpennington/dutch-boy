@@ -10,8 +10,8 @@ This plugin:
 * Detects mocks created during tests that are not deleted by the end of the test.
 * Reports memory delta between tests.  Optional.
 
-To learn the story of the name, visit `https://en.wikipedia
-.org/wiki/Hans_Brinker,_or_The_Silver_Skates`_.
+To learn the story of the name, visit `<https://en.wikipedia
+.org/wiki/Hans_Brinker,_or_The_Silver_Skates>`_.
 
 ============
 Django Setup
