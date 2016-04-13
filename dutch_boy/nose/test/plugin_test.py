@@ -157,6 +157,32 @@ class LeakDetectorLevelTestCase(TestCase):
                          re.compile('Found 1 new mock.*MY LEAKED MOCK',
                                     re.MULTILINE | re.DOTALL))
 
+    def test_leak_detected_after_error(self):
+        """ A mock leaked by one test that errors and is reported minimally on the next test. """
+
+        # Fake one test running
+        self.detector.beforeTest(self.fake_test)
+        self.detector.prepareTestCase(self.fake_test)(self.fake_result)
+
+        with _leaked_mock(self):
+            self.detector.handleError(self.fake_test, ())
+            self.detector.afterTest(self.fake_test)
+
+            next_test = create_ignored_mock(name='%s: Next Test' % self.id())
+            next_result = create_ignored_mock(spec=unittest.result.TestResult,
+                                              name='%s: Next Result' % self.id())
+
+            # Simulate nose running another test
+            self.detector.beforeTest(next_test)
+            self.detector.prepareTestCase(next_test)(next_result)
+
+        self.detector.afterTest(next_test)
+
+        # The error should be set on the second test (because we don't want to keep a test around)
+        self.assertTrue(next_result.addError.called)
+        self.assertEqual(next_result.addError.call_args[0][0], next_test)
+        self.assertRegex(str(next_result.addError.call_args[0][1]), 'Leak detected after test')
+
     def test_pre_existing_mock_called_and_not_reset(self):
         """ Existing that have been called and not reset are reported. """
 

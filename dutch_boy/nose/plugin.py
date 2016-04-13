@@ -73,7 +73,6 @@ class LeakDetectorPlugin(Plugin):
         self.ignore_patterns = []
 
         self.patch_mock = False
-        self.failed_test_with_leak = False
         self.last_test_name = None
         self.last_test_type = None
         self.last_test_class_name = None
@@ -81,6 +80,8 @@ class LeakDetectorPlugin(Plugin):
         self.previous_summaries = {}
         self.current_summary = None
         self.skip_next_check = False
+        self.current_test_errored = False
+        self.last_test_errored = False
 
         self.mock_patch = None
         self._final_exc_info = None
@@ -172,6 +173,9 @@ class LeakDetectorPlugin(Plugin):
                 self.previous_summaries[i] = initial_summary
 
     def beforeTest(self, test):
+        self.last_test_errored = self.current_test_errored
+        self.current_test_errored = False
+
         if self.last_test_name and self.last_test_type is not type(test.test):
             self.finished_level(LEVEL_CLASS, self.last_test_class_name)
 
@@ -194,17 +198,19 @@ class LeakDetectorPlugin(Plugin):
                 self.check_for_leaks()
             except LeakDetected as e:
                 exception_class, value, _ = sys.exc_info()
-                message = str(value) + ' at %s' % self.get_level_path()
+                message = str(value)
                 if self.last_test_name:
-                    message += " for prior test '%s'" % self.last_test_name
-                    result.addError(test, (exception_class, message, None))
+                    if self.last_test_errored:
+                        message = ('Leak detected after test '
+                                   '(details suppressed due to earlier error)')
+                    else:
+                        message = "After test '%s': %s" % (self.last_test_name, message)
                 else:
                     if before:
-                        message += ' before test'
+                        message = 'Before test: %s' % message
                     else:
-                        message += ' before any tests were run'
-                    result.addError(test, (exception_class, message, None))
-                self.failed_test_with_leak = True
+                        message = 'Before any tests were run: %s' % message
+                result.addError(test, (exception_class, message, None))
                 if not self.fail_fast:
                     result.stop()
 
@@ -240,6 +246,9 @@ class LeakDetectorPlugin(Plugin):
     #
     # def afterDirectory(self, path):
     #     self.finished_level(LEVEL_DIR, path)
+
+    def handleError(self, test, err):
+        self.current_test_errored = True
 
     def started_level(self, level, name=None):
         self.level_name[level] = name
@@ -356,21 +365,24 @@ class LeakDetectorPlugin(Plugin):
             def error_message(bad_mock):
                 data = vars(bad_mock.mock_ref())
                 msg = ' --> '.join(bad_mock.traceback or
-                    ["No traceback available.  Consider setting '--leak-detector-add-traceback' to "
-                     "see where this mock was created."])
+                    ["No traceback available.  Consider setting '--leak-detector-add-traceback' "
+                     "to see where this mock was created."])
                 if bad_mock.test:
-                    msg += ' for test %s' % bad_mock.test
+                    msg = "Created in test '%s' [%s]" % (bad_mock.test, msg)
                 return msg + ' : ' + str(data)
+
+            def number(l):
+                return ' '.join(['%d) %s' % (i + 1, v) for i, v in enumerate(l)])
 
             msg = ''
             if new_mocks:
                 msg += ('Found %d new mock(s) that have not been garbage collected:\n%s' %
-                        (len(new_mocks), list(map(error_message, new_mocks))))
+                        (len(new_mocks), number(map(error_message, new_mocks))))
 
             if called_mocks:
                 msg += ('Found %d dirty mock(s) that have not been garbage collected or reset:\n%s' %
                         (len(called_mocks),
-                         list(map(error_message,
+                         number(map(error_message,
                                   [m for m in called_mocks if id(m.mock_ref())
                                    not in [id(n.mock_ref()) for n in new_mocks]]))))
 
