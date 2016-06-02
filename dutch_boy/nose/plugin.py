@@ -134,6 +134,7 @@ class LeakDetectorPlugin(Plugin):
         self.patch_mock = options.leak_detector_patch_mock
         self.ignore_patterns = options.leak_detector_ignore_patterns
         self.save_traceback = options.leak_detector_save_traceback
+        self.multiprocessing_enabled = bool(getattr(options, 'multiprocess_workers', False))
 
     def begin(self):
         self.create_initial_summary()
@@ -306,6 +307,10 @@ class LeakDetectorPlugin(Plugin):
                 self._final_exc_info = sys.exc_info()[:2]
 
     def report(self, stream):
+        # Let each worker speak for itself when multiprocessing is enabled
+        if self.multiprocessing_enabled:
+            return
+
         self.final_check()
 
         msg = u'Leak Detector Report: '
