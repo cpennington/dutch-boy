@@ -33,7 +33,7 @@ setup(
         'termcolor>=1.1.0',
     ],
     tests_require=[
-        'mock>=1.3.0',
+        'mock>=1.3.0,<2',
     ],
     test_suite='nose.collector',
     url='https://github.com/Nextdoor/dutch-boy',
@@ -52,7 +52,6 @@ setup(
         'License :: OSI Approved :: BSD License',
         'Operating System :: OS Independent',
         'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
         'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.2',

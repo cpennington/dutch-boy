@@ -74,6 +74,7 @@ class LeakDetectorPlugin(Plugin):
 
         self.patch_mock = False
         self.last_test_name = None
+        self.last_test_module_name = None
         self.last_test_type = None
         self.last_test_class_name = None
         self.level_name = {}
@@ -133,6 +134,7 @@ class LeakDetectorPlugin(Plugin):
         self.patch_mock = options.leak_detector_patch_mock
         self.ignore_patterns = options.leak_detector_ignore_patterns
         self.save_traceback = options.leak_detector_save_traceback
+        self.multiprocessing_enabled = bool(getattr(options, 'multiprocess_workers', False))
 
     def begin(self):
         self.create_initial_summary()
@@ -176,17 +178,28 @@ class LeakDetectorPlugin(Plugin):
         self.last_test_errored = self.current_test_errored
         self.current_test_errored = False
 
-        if self.last_test_name and self.last_test_type is not type(test.test):
-            self.finished_level(LEVEL_CLASS, self.last_test_class_name)
+        test_type = type(test.test)
+        test_module_name = test.test.__class__.__module__
 
-        if not self.last_test_name or self.last_test_type is type(test.test):
-            self.started_level(LEVEL_CLASS, self.last_test_class_name)
+        if self.last_test_name:
+            if self.last_test_type is not test_type:
+                self.finished_level(LEVEL_CLASS, self.last_test_class_name)
+
+            if self.last_test_module_name != test_module_name:
+                self.finished_level(LEVEL_MODULE, self.last_test_module_name)
+
+        if not self.last_test_name or self.last_test_module_name != test_module_name:
+            self.started_level(LEVEL_MODULE, test_module_name)
+
+        if not self.last_test_name or self.last_test_type is not test_type:
+            self.started_level(LEVEL_CLASS, test.test.__class__.__name__)
 
         self.started_level(LEVEL_TEST, str(test))
 
     def afterTest(self, test):
         self.last_test_name = str(test.test)
         self.last_test_class_name = test.test.__class__.__name__
+        self.last_test_module = test.test.__class__.__module__
 
         self.finished_level(LEVEL_TEST, str(test))
 
@@ -217,8 +230,6 @@ class LeakDetectorPlugin(Plugin):
         if self.check_for_leaks_before_next_test:
             do_check(before=True)
             self.check_for_leaks_before_next_test = False
-
-        self.level_name[LEVEL_MODULE] = test.test.__class__.__module__
 
         test.test(result)
 
@@ -296,6 +307,10 @@ class LeakDetectorPlugin(Plugin):
                 self._final_exc_info = sys.exc_info()[:2]
 
     def report(self, stream):
+        # Let each worker speak for itself when multiprocessing is enabled
+        if self.multiprocessing_enabled:
+            return
+
         self.final_check()
 
         msg = u'Leak Detector Report: '

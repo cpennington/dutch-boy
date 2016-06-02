@@ -43,7 +43,8 @@ class LeakDetectorFinalizeTestCase(TestCase):
             leak_detector_report_delta=False,
             leak_detector_patch_mock=True,
             leak_detector_save_traceback=False,
-            leak_detector_ignore_patterns=['NOSE_LEAK_DETECTOR_IGNORE'])
+            leak_detector_ignore_patterns=['NOSE_LEAK_DETECTOR_IGNORE'],
+            multiprocess_workers=False)
 
         configuration = create_ignored_mock(name='%s: Configuration' % self.id())
         self.detector.configure(options, configuration)
@@ -118,7 +119,8 @@ class LeakDetectorLevelTestCase(TestCase):
             leak_detector_report_delta=False,
             leak_detector_patch_mock=True,
             leak_detector_save_traceback=False,
-            leak_detector_ignore_patterns=['NOSE_LEAK_DETECTOR_IGNORE'])
+            leak_detector_ignore_patterns=['NOSE_LEAK_DETECTOR_IGNORE'],
+            multiprocess_workers=False)
 
         configuration = create_ignored_mock(name='%s: Configuration' % self.id())
         self.detector.configure(options, configuration)
