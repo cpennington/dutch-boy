@@ -17,7 +17,7 @@ if sys.version_info >= (3,):
 
 setup(
     name='dutch-boy',
-    version='0.1.7',
+    version='0.1.8',
     description='A library for detecting memory leaks in tests, mainly '
                 'with mocks',
     long_description=codecs.open('README.rst', encoding='utf-8').read(),
@@ -37,8 +37,8 @@ setup(
     ],
     test_suite='nose.collector',
     url='https://github.com/Nextdoor/dutch-boy',
-    download_url='https://github.com/Nextdoor/dutch-boy/archive/0.1.7'
-                 '#egg=dutch-boy-0.1.7',
+    download_url='https://github.com/Nextdoor/dutch-boy/archive/0.1.8'
+                 '#egg=dutch-boy-0.1.8',
     include_package_data=True,
     entry_points="""
         [nose.plugins.0.10]
