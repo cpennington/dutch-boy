@@ -33,7 +33,7 @@ setup(
         'termcolor>=1.1.0',
     ],
     tests_require=[
-        'mock>=1.3.0',
+        'mock>=1.3.0,<2',
     ],
     test_suite='nose.collector',
     url='https://github.com/Nextdoor/dutch-boy',
