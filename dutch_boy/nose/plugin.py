@@ -12,13 +12,15 @@ import re
 
 try:
     from unittest import mock
-    from unittest.mock import Base
+    from unittest.mock import Base, MagicProxy
 except ImportError:
     import mock
     try:
-        from mock.mock import Base
+        from mock.mock import Base, MagicProxy
     except ImportError:
-        from mock import Base
+        from mock import Base, MagicProxy
+
+print mock.__file__
 
 import resource
 import sys
@@ -419,7 +421,15 @@ class LeakDetectorPlugin(Plugin):
                     # MagicProxies are part of the MagicMock infrastructure that
                     # only ever point back to that same MagicMock (and implement
                     # the magic methods), so we can safely ignore them.
-                    isinstance(obj, mock.MagicProxy) or
+                    isinstance(obj, MagicProxy) or
+                    # MagicProxy.__dict__ has `name` and `parent`, and `parent`
+                    # points to a MagicMock
+                    (
+                        isinstance(obj, dict) and
+                        'parent' in obj and
+                        'name' in obj and
+                        isinstance(obj['parent'], mock.MagicMock)
+                    ) or
                     # Mocks always create new Type objects, so we can ignore
                     # them as well, since each Mock will be the only thing
                     # pointing to its type.
