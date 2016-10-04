@@ -415,7 +415,7 @@ class LeakDetectorPlugin(Plugin):
                 return '\n\n'.join(['%d) %s' % (i + 1, v) for i, v in enumerate(l)])
 
             def ignoreable_object(obj):
-                return (
+                return not (
                     # MagicProxies are part of the MagicMock infrastructure that
                     # only ever point back to that same MagicMock (and implement
                     # the magic methods), so we can safely ignore them.
