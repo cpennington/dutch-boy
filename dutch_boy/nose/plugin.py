@@ -436,7 +436,7 @@ class LeakDetectorPlugin(Plugin):
                     (isinstance(obj, type) and issubclass(obj, Base)) or
                     # Objgraph sees the current traceback frame while showing
                     # backrefs, but that isn't useful.
-                    obj is sys.exc_traceback.tb_frame
+                    (hasattr(sys, 'exc_traceback') and obj is sys.exc_traceback.tb_frame)
                 )
 
             def dump_backrefs(bad_mock):
