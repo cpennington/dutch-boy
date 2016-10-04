@@ -456,8 +456,9 @@ class LeakDetectorPlugin(Plugin):
                             (len(called_mocks), number(map(error_message, called_mocks))))
 
                     if self.dump_backrefs:
-                        for mock in called_mocks:
-                            dump_backrefs(mock)
+                        for m in called_mocks:
+                            dump_backrefs(m)
+                        del m
             else:
                 if new_mocks:
                     msg += ('Found %d new mock(s) that have not been garbage collected:\n\n%s\n\n' %
