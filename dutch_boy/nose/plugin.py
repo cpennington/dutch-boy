@@ -129,6 +129,11 @@ class LeakDetectorPlugin(Plugin):
                           help="If set, record objgraph backref traces for all leaked Mocks.")
 
 
+        parser.add_option("--leak-detector-ignore-empty-mocks", action="store_true",
+                          default=env.get('NOSE_LEAK_DETECTOR_IGNORE_EMPTY', False),
+                          dest="leak_detector_ignore_empty",
+                          help="If set, don't report on mocks that haven't had any calls made on them (or have been reset).")
+
     def configure(self, options, conf):
         """
         Configure plugin.
@@ -141,6 +146,7 @@ class LeakDetectorPlugin(Plugin):
         self.ignore_patterns = options.leak_detector_ignore_patterns
         self.save_traceback = options.leak_detector_save_traceback
         self.dump_backrefs = options.leak_detector_dump_backrefs
+        self.ignore_empty = options.leak_detector_ignore_empty
         self.multiprocessing_enabled = bool(getattr(options, 'multiprocess_workers', False))
 
     def setOutputStream(self, stream):
@@ -386,6 +392,9 @@ class LeakDetectorPlugin(Plugin):
                 not in [id(n.mock_ref()) for n in new_mocks]
             ]
 
+            if self.ignore_empty and not called_mocks:
+                return
+
             if not (new_mocks or old_called_mocks):
                 return
 
@@ -438,18 +447,26 @@ class LeakDetectorPlugin(Plugin):
 
             msg = ''
 
-            if new_mocks:
-                msg += ('Found %d new mock(s) that have not been garbage collected:\n\n%s\n\n' %
-                        (len(new_mocks), number(map(error_message, new_mocks))))
+            if self.ignore_empty:
+                if called_mocks:
+                    msg += ('Found %d mock(s) that have not been called and not garbage collected or reset:\n\n%s\n\n' %
+                            (len(called_mocks), number(map(error_message, called_mocks))))
 
-                if self.dump_backrefs:
-                    for mock in new_mocks:
-                        dump_backrefs(mock)
+                    if self.dump_backrefs:
+                        for mock in called_mocks:
+                            dump_backrefs(mock)
+            else:
+                if new_mocks:
+                    msg += ('Found %d new mock(s) that have not been garbage collected:\n\n%s\n\n' %
+                            (len(new_mocks), number(map(error_message, new_mocks))))
 
-            if old_called_mocks:
-                msg += ('Found %d existing mock(s) that have not been garbage collected or reset:\n\n%s\n\n' %
-                        (len(old_called_mocks), number(map(error_message, old_called_mocks))))
-                                   not in [id(n.mock_ref()) for n in new_mocks]]))))
+                    if self.dump_backrefs:
+                        for mock in new_mocks:
+                            dump_backrefs(mock)
+
+                if old_called_mocks:
+                    msg += ('Found %d existing mock(s) that have not been garbage collected or reset:\n\n%s\n\n' %
+                            (len(old_called_mocks), number(map(error_message, old_called_mocks))))
 
             # Reset all known mocks so they aren't detected the next time around
             for m in called_mocks:
