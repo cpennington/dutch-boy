@@ -423,7 +423,10 @@ class LeakDetectorPlugin(Plugin):
                     # Mocks always create new Type objects, so we can ignore
                     # them as well, since each Mock will be the only thing
                     # pointing to its type.
-                    (isinstance(obj, type) and issubclass(obj, Base))
+                    (isinstance(obj, type) and issubclass(obj, Base)) or
+                    # Objgraph sees the current traceback frame while showing
+                    # backrefs, but that isn't useful.
+                    obj is sys.exc_traceback.tb_frame
                 )
 
             def dump_backrefs(bad_mock):
