@@ -365,7 +365,7 @@ class LeakDetectorPlugin(Plugin):
                                        for pattern in self.ignore_patterns),
                                self.known_mocks))
 
-        self.previous_mock_refs = list([weakref.ref(m.mock_ref()) for m in live_mocks])
+        self.previous_mock_refs = [weakref.ref(m.mock_ref()) for m in live_mocks]
 
         if get_new_mocks() or get_called_mocks():
             # Try again after garbage collecting
