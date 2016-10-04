@@ -419,7 +419,7 @@ class LeakDetectorPlugin(Plugin):
                     # MagicProxies are part of the MagicMock infrastructure that
                     # only ever point back to that same MagicMock (and implement
                     # the magic methods), so we can safely ignore them.
-                    isinstance(obj, MagicProxy) or
+                    isinstance(obj, mock.MagicProxy) or
                     # Mocks always create new Type objects, so we can ignore
                     # them as well, since each Mock will be the only thing
                     # pointing to its type.
