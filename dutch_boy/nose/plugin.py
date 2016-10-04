@@ -81,7 +81,6 @@ class LeakDetectorPlugin(Plugin):
         self.current_summary = None
         self.skip_next_check = False
         self.current_test_errored = False
-        self.last_test_errored = False
 
         self.mock_patch = None
         self._final_exc_info = None
@@ -178,7 +177,6 @@ class LeakDetectorPlugin(Plugin):
                 self.previous_summaries[i] = initial_summary
 
     def beforeTest(self, test):
-        self.last_test_errored = self.current_test_errored
         self.current_test_errored = False
 
         test_type = type(test.test)
@@ -216,11 +214,7 @@ class LeakDetectorPlugin(Plugin):
                 exception_class, value, _ = sys.exc_info()
                 message = str(value)
                 if self.last_test_name:
-                    if self.last_test_errored:
-                        message = ('Leak detected after test '
-                                   '(details suppressed due to earlier error)')
-                    else:
-                        message = "After test '%s': %s" % (self.last_test_name, message)
+                    message = "After test '%s': %s" % (self.last_test_name, message)
                 else:
                     if before:
                         message = 'Before test: %s' % message
@@ -404,6 +398,10 @@ class LeakDetectorPlugin(Plugin):
                          number(map(error_message,
                                   [m for m in called_mocks if id(m.mock_ref())
                                    not in [id(n.mock_ref()) for n in new_mocks]]))))
+
+            # Reset all known mocks so they aren't detected the next time around
+            for m in called_mocks:
+                m.mock_ref().reset_mock()
 
             # Ensure hard references to the mocks are no longer on the stack
             del live_mocks[:], new_mocks[:], called_mocks[:]
