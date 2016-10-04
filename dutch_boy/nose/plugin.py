@@ -381,7 +381,12 @@ class LeakDetectorPlugin(Plugin):
             gc.collect()
             new_mocks = get_new_mocks()
             called_mocks = get_called_mocks()
-            if not (new_mocks or called_mocks):
+            old_called_mocks = [
+                m for m in called_mocks if id(m.mock_ref())
+                not in [id(n.mock_ref()) for n in new_mocks]
+            ]
+
+            if not (new_mocks or old_called_mocks):
                 return
 
             def error_message(bad_mock):
@@ -432,19 +437,18 @@ class LeakDetectorPlugin(Plugin):
                 )
 
             msg = ''
+
             if new_mocks:
-                msg += ('Found %d new mock(s) that have not been garbage collected:\n%s' %
+                msg += ('Found %d new mock(s) that have not been garbage collected:\n\n%s\n\n' %
                         (len(new_mocks), number(map(error_message, new_mocks))))
 
                 if self.dump_backrefs:
                     for mock in new_mocks:
                         dump_backrefs(mock)
 
-            if called_mocks:
-                msg += ('Found %d dirty mock(s) that have not been garbage collected or reset:\n%s' %
-                        (len(called_mocks),
-                         number(map(error_message,
-                                  [m for m in called_mocks if id(m.mock_ref())
+            if old_called_mocks:
+                msg += ('Found %d existing mock(s) that have not been garbage collected or reset:\n\n%s\n\n' %
+                        (len(old_called_mocks), number(map(error_message, old_called_mocks))))
                                    not in [id(n.mock_ref()) for n in new_mocks]]))))
 
             # Reset all known mocks so they aren't detected the next time around
@@ -452,7 +456,8 @@ class LeakDetectorPlugin(Plugin):
                 m.mock_ref().reset_mock()
 
             # Ensure hard references to the mocks are no longer on the stack
-            del live_mocks[:], new_mocks[:], called_mocks[:]
+            del live_mocks[:], new_mocks[:], called_mocks[:], old_called_mocks[:]
+
             raise LeakDetected(msg)
 
     def get_summary(self):
