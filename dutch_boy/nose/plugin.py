@@ -476,6 +476,7 @@ class LeakDetectorPlugin(Plugin):
             # Reset all known mocks so they aren't detected the next time around
             for m in called_mocks:
                 m.mock_ref().reset_mock()
+            del m
 
             # Ensure hard references to the mocks are no longer on the stack
             del live_mocks[:], new_mocks[:], called_mocks[:], old_called_mocks[:]
