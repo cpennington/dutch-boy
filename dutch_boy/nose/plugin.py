@@ -497,6 +497,8 @@ class LeakDetectorPlugin(Plugin):
 
     def get_summary(self):
         gc.collect(0)
+        gc.collect(1)
+        gc.collect(2)
         # exclude everything in this object itself
         excluded = set(id(o) for o in muppy.get_referents(self))
         return summary.summarize(o for o in muppy.get_objects() if not id(o) in excluded)
