@@ -31,6 +31,7 @@ from nose.plugins import Plugin
 import objgraph
 from pympler import muppy
 from pympler import summary
+from pympler.util import stringutils
 import termcolor
 
 KnownMock = collections.namedtuple('KnownMock', ['mock_ref', 'test', 'traceback'])
@@ -305,6 +306,7 @@ class LeakDetectorPlugin(Plugin):
             if filtered_diff:
                 self.stream.write(termcolor.colored(report, color))
                 self.stream.write('\n'.join(summary.format_(filtered_diff)))
+                self.stream.write("Total memory used" + stringutils.pp(sum(row[2] for row in filtered_diff)) + "\n")
                 self.stream.write('\n')
             else:
                 report += 'No changes\n'
