@@ -187,6 +187,9 @@ class LeakDetectorPlugin(Plugin):
 
         if self.report_delta:
             initial_summary = self.get_summary()
+            self.stream.write(termcolor.colored('Initial memory use before tests start', 'red'))
+            self.stream.write('\n'.join(initial_summary.format_(initial_summary)))
+            self.stream.write('\n')
 
         # Before any tests are run record a memory summary
         if not self.previous_summaries and self.reporting_level and self.report_delta:
